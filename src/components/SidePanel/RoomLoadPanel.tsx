@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Flame, Building2, Droplets, Coins } from 'lucide-react';
+import { Plus, Trash2, Flame, Building2, Coins, Receipt } from 'lucide-react';
 import {
   calcRoom,
   calcSystem,
@@ -12,6 +12,7 @@ import {
   type RoomInput,
   type RoomCalc,
 } from '../../heatLoad';
+import { calcQuote } from '../../materials';
 
 const DEFAULT_ROOM: RoomInput = {
   name: '客厅',
@@ -46,6 +47,13 @@ export default function RoomLoadPanel() {
   };
 
   const summary = calcSystem(rooms);
+  const totalArea = rooms.reduce((s, r) => s + r.areaM2, 0);
+  const quote = calcQuote({
+    areaM2: totalArea,
+    loops: summary.totalLoops,
+    roomCount: rooms.length,
+    boilerKW: summary.recommendedBoilerKW,
+  });
 
   return (
     <div className="side-panel-tab-content">
@@ -158,6 +166,7 @@ export default function RoomLoadPanel() {
         <h2><Flame /> 系统汇总</h2>
         <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
           <tbody>
+            <tr><td>采暖面积</td><td style={{ textAlign: 'right' }}>{totalArea} ㎡</td></tr>
             <tr><td>总热负荷</td><td style={{ textAlign: 'right' }}><b>{summary.totalLoadKW} kW</b></td></tr>
             <tr><td>推荐锅炉</td><td style={{ textAlign: 'right' }}><b>{summary.recommendedBoilerKW} kW</b></td></tr>
             <tr><td>分集水器路数</td><td style={{ textAlign: 'right' }}><b>{summary.totalLoops} 路</b></td></tr>
@@ -168,6 +177,44 @@ export default function RoomLoadPanel() {
             <tr><td>一次侧主管</td><td style={{ textAlign: 'right' }}>{summary.primaryMainPipe}</td></tr>
           </tbody>
         </table>
+      </section>
+
+      <section className="panel-section">
+        <h2><Receipt /> 系统报价</h2>
+        <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #333' }}>
+              <th style={{ textAlign: 'left' }}>项目</th>
+              <th style={{ textAlign: 'right' }}>数量</th>
+              <th style={{ textAlign: 'right' }}>单价</th>
+              <th style={{ textAlign: 'right' }}>小计</th>
+            </tr>
+          </thead>
+          <tbody>
+            {quote.items.map((it) => (
+              <tr key={it.no} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '3px 0' }}>
+                  {it.name}
+                  <div style={{ fontSize: '0.65rem', color: '#888' }}>{it.brand}</div>
+                </td>
+                <td style={{ textAlign: 'right' }}>{it.qty}{it.unit}</td>
+                <td style={{ textAlign: 'right' }}>{it.unitPrice}</td>
+                <td style={{ textAlign: 'right' }}>{it.subtotal.toLocaleString()}</td>
+              </tr>
+            ))}
+            <tr style={{ borderTop: '2px solid #333', fontWeight: 700 }}>
+              <td colSpan={3}>系统总报价</td>
+              <td style={{ textAlign: 'right' }}>¥{quote.total.toLocaleString()}</td>
+            </tr>
+            <tr style={{ color: '#666' }}>
+              <td colSpan={3}>单位面积造价</td>
+              <td style={{ textAlign: 'right' }}>¥{quote.perSqm}/㎡</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="info" style={{ fontSize: '0.65rem', marginTop: '4px' }}>
+          含材料+人工+调试+首年售后，无隐形增项；不含生活热水改造
+        </p>
       </section>
 
       <section className="panel-section">
