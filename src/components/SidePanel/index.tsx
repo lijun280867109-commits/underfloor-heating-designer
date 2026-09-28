@@ -5,6 +5,7 @@ import {
     FolderOpen,
     Home,
     Flame,
+    Building2,
     Map,
     Move,
     RefreshCw,
@@ -19,6 +20,7 @@ import { parseDxfEntities, placeDxfInDrawing } from '../../geometry/dxfHelpers';
 import { mmToMeters } from '../../geometry/length';
 import { UFH_STORE_STORAGE_KEY, partializeStoreState, useStore } from '../../state/store';
 import HeatTab from './HeatTab';
+import RoomLoadPanel from './RoomLoadPanel';
 import { COMMON_PIPE_OUTER_DIAMETERS_MM, PIPE_WALL_MM } from '../../geometry/heat';
 import ZoneCard from './ZoneCard';
 
@@ -26,11 +28,6 @@ const PROJECT_STORAGE_VERSION = 0;
 
 const IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif,image/png,image/jpeg,image/webp,image/gif';
 
-/**
- * A bitmap carries no scale, so an import has to assume one; 10 mm per image pixel puts a
- * typical plan scan in the right ballpark (a 2 000 px wide scan becomes a 20 m elevation).
- * Calibrating against a known distance replaces the guess with the truth.
- */
 const ASSUMED_IMAGE_MM_PER_PIXEL = 10;
 
 export default function SidePanel() {
@@ -61,7 +58,7 @@ export default function SidePanel() {
     const [calibrationDistance, setCalibrationDistance] = useState('1000');
     const [importError, setImportError] = useState<string | null>(null);
     const [projectError, setProjectError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'setup' | 'zones' | 'heat'>('setup');
+    const [activeTab, setActiveTab] = useState<'setup' | 'zones' | 'heat' | 'load'>('load');
 
     const handleSaveProject = () => {
         const persisted = partializeStoreState(useStore.getState());
@@ -111,7 +108,6 @@ export default function SidePanel() {
         const isDxf = file.name.toLowerCase().endsWith('.dxf');
 
         if (isDxf) {
-            // ---- DXF import ----
             const reader = new FileReader();
             reader.onload = (loadEvent) => {
                 try {
@@ -123,8 +119,6 @@ export default function SidePanel() {
                         setImportError('DXF parsed but contains no supported entities (LINE, POLYLINE, CIRCLE, ARC). Try importing an image instead.');
                         return;
                     }
-                    // DXF units are assumed to be millimetres (AutoCAD's own default);
-                    // calibration corrects files drawn in metres or inches.
                     setBackground({
                         kind: 'dxf',
                         entities,
@@ -141,7 +135,6 @@ export default function SidePanel() {
             };
             reader.readAsText(file);
         } else {
-            // ---- Raster image import ----
             const reader = new FileReader();
             reader.onload = (loadEvent) => {
                 const src = loadEvent.target?.result;
@@ -152,9 +145,6 @@ export default function SidePanel() {
 
                 const img = new window.Image();
                 img.onload = () => {
-                    // Placed at the drawing's origin rather than at a screen position, then
-                    // framed by moving the camera — so a re-import lands in the same place
-                    // however the view happens to be panned or zoomed at the time.
                     setBackground({
                         kind: 'image',
                         src,
@@ -197,34 +187,42 @@ export default function SidePanel() {
     return (
         <div className="side-panel">
             <div className="panel-header">
-                <h1><Thermometer /> UFH Designer</h1>
+                <h1><Thermometer /> 李军暖通</h1>
             </div>
 
             <div className="side-panel-tabs">
                 <button
+                    className={`side-panel-tab ${activeTab === 'load' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('load')}
+                >
+                    <Building2 /> 负荷
+                </button>
+                <button
                     className={`side-panel-tab ${activeTab === 'setup' ? 'active' : ''}`}
                     onClick={() => setActiveTab('setup')}
                 >
-                    <Settings /> Setup
+                    <Settings /> 设置
                 </button>
                 <button
                     className={`side-panel-tab ${activeTab === 'zones' ? 'active' : ''}`}
                     onClick={() => setActiveTab('zones')}
                 >
-                    <Home /> Zones {zones.length > 0 && <><br/><span className="zone-count">{zones.length}</span></>}
+                    <Home /> 管路 {zones.length > 0 && <><br/><span className="zone-count">{zones.length}</span></>}
                 </button>
                 <button
                     className={`side-panel-tab ${activeTab === 'heat' ? 'active' : ''}`}
                     onClick={() => setActiveTab('heat')}
                 >
-                    <Flame /> Heat
+                    <Flame /> 水力
                 </button>
             </div>
+
+            {activeTab === 'load' && <RoomLoadPanel />}
 
             {activeTab === 'setup' && (
                 <div className="side-panel-tab-content">
                     <section className="panel-section">
-                        <h2><Save /> Project</h2>
+                        <h2><Save /> 项目</h2>
                         <input
                             ref={projectFileInputRef}
                             type="file"
@@ -233,20 +231,20 @@ export default function SidePanel() {
                             style={{ display: 'none' }}
                         />
                         <button className="btn" onClick={handleSaveProject}>
-                            <Save /> Save Project
+                            <Save /> 保存项目
                         </button>
                         <button
                             className="btn btn-secondary"
                             style={{ marginTop: '4px' }}
                             onClick={() => projectFileInputRef.current?.click()}
                         >
-                            <FolderOpen /> Load Project
+                            <FolderOpen /> 加载项目
                         </button>
                         {projectError && <p className="error">{projectError}</p>}
                     </section>
 
                     <section className="panel-section">
-                        <h2><Map /> Floor Plan</h2>
+                        <h2><Map /> 户型图</h2>
                         <input
                             ref={fileInputRef}
                             type="file"
@@ -255,10 +253,10 @@ export default function SidePanel() {
                             style={{ display: 'none' }}
                         />
                         <button className="btn" onClick={() => fileInputRef.current?.click()}>
-                            {background ? <><RefreshCw /> Re-import DXF or Image</> : <><Upload /> Import DXF or Image</>}
+                            {background ? <><RefreshCw /> 重新导入户型图</> : <><Upload /> 导入DXF或图片</>}
                         </button>
                         <p className="info" style={{ fontSize: '0.75rem' }}>
-                            Accepts: DXF, PNG, JPG, WEBP, GIF
+                            支持 DXF, PNG, JPG, WEBP, GIF
                         </p>
                         {importError && <p className="error">{importError}</p>}
                         {bgStatus && <p className="info">{bgStatus}</p>}
@@ -271,41 +269,39 @@ export default function SidePanel() {
                                         setToolMode(toolMode === 'panBackground' ? 'select' : 'panBackground')
                                     }
                                 >
-                                    <Move /> {toolMode === 'panBackground' ? 'Done moving plan' : 'Move plan'}
+                                    <Move /> {toolMode === 'panBackground' ? '完成移动' : '移动户型图'}
                                 </button>
                                 <button
                                     className="btn btn-secondary"
                                     style={{ marginTop: '4px' }}
                                     onClick={() => setBackground(null)}
                                 >
-                                    <Trash2 /> Clear background
+                                    <Trash2 /> 清除背景
                                 </button>
                             </>
                         )}
                     </section>
 
                     <section className="panel-section">
-                        <h2><Ruler /> Scale Calibration</h2>
+                        <h2><Ruler /> 比例尺校准</h2>
                         <p className="info">
-                            The drawing is in millimetres, so zones are already true to size.
-                            Calibrating resizes the imported plan to match them — measure two
-                            points on the plan and give their real distance.
+                            点击户型图上两个已知距离的点，输入实际距离。
                         </p>
                         {!background && (
-                            <p className="info">Import a floor plan first — there is nothing to calibrate.</p>
+                            <p className="info">请先导入户型图。</p>
                         )}
                         {!calibration.active ? (
                             <button className="btn" onClick={startCalibration} disabled={!background}>
-                                <Ruler /> Calibrate Scale
+                                <Ruler /> 开始校准
                             </button>
                         ) : (
                             <div>
                                 <p className="info">
                                     {!calibration.point1
-                                        ? 'Click a point on the plan — it stays put as the plan resizes'
+                                        ? '在图上点第一个点'
                                         : !calibration.point2
-                                            ? 'Click a second point a known distance away'
-                                            : 'Enter the real distance between the points'}
+                                            ? '在图上点第二个点'
+                                            : '输入两点实际距离'}
                                 </p>
                                 {calibration.point2 && (
                                     <div className="calibration-input">
@@ -315,28 +311,28 @@ export default function SidePanel() {
                                             min="1"
                                             value={calibrationDistance}
                                             onChange={(event) => setCalibrationDistance(event.target.value)}
-                                            placeholder="Real distance (mm)"
+                                            placeholder="实际距离 (mm)"
                                         />
                                         <span>mm</span>
                                         <button
                                             className="btn btn-primary"
                                             onClick={() => finishCalibration(Number(calibrationDistance))}
                                         >
-                                            <Check /> Apply
+                                            <Check /> 应用
                                         </button>
                                     </div>
                                 )}
                                 <button className="btn btn-secondary" onClick={cancelCalibration}>
-                                    Cancel
+                                    取消
                                 </button>
                             </div>
                         )}
                     </section>
 
                     <section className="panel-section">
-                        <h2><Settings /> Default Settings</h2>
+                        <h2><Settings /> 默认设置</h2>
                         <div className="setting-row">
-                            <label>Max circuit length:</label>
+                            <label>单路最大长度:</label>
                             <input
                                 type="number"
                                 min={10}
@@ -347,7 +343,7 @@ export default function SidePanel() {
                             <span>m</span>
                         </div>
                         <div className="setting-row">
-                            <label>Default spacing:</label>
+                            <label>默认间距:</label>
                             <input
                                 type="number"
                                 min={50}
@@ -358,7 +354,7 @@ export default function SidePanel() {
                             <span>mm</span>
                         </div>
                         <div className="setting-row">
-                            <label>Pipe size:</label>
+                            <label>管径:</label>
                             <select
                                 className="zone-select"
                                 value={pipeOuterDiameterMm}
@@ -366,13 +362,13 @@ export default function SidePanel() {
                             >
                                 {COMMON_PIPE_OUTER_DIAMETERS_MM.map((od) => (
                                     <option key={od} value={od}>
-                                        {od}&times;{PIPE_WALL_MM} mm
+                                        {od}×{PIPE_WALL_MM} mm
                                     </option>
                                 ))}
                             </select>
                         </div>
                         <div className="setting-row">
-                            <label>Manifold angle:</label>
+                            <label>分集水器角度:</label>
                             <input
                                 type="number"
                                 step={1}
@@ -395,7 +391,7 @@ export default function SidePanel() {
                 <div className="side-panel-tab-content">
                     <section className="panel-section">
                         {zones.length === 0 && (
-                            <p className="info">No zones yet. Use "Polygon zone" or "Rect zone" to create one.</p>
+                            <p className="info">还没有房间。用"多边形房间"或"矩形房间"创建。</p>
                         )}
                         <div className="zone-list">
                             {zones.map((zone) => (
@@ -410,7 +406,7 @@ export default function SidePanel() {
 
                         {zones.length > 0 && (
                             <div className="grand-total">
-                                <strong>Grand Total: {totalGrand.toFixed(1)} m</strong>
+                                <strong>管路总长: {totalGrand.toFixed(1)} m</strong>
                             </div>
                         )}
                     </section>
