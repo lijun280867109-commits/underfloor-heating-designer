@@ -24,12 +24,25 @@ const DEFAULT_ROOM: RoomInput = {
   floorMaterial: 'tile',
 };
 
+// 默认户型：南昌三房两厅两卫 110㎡
+const DEFAULT_ROOMS: RoomInput[] = [
+  { name: '客餐厅', areaM2: 37.9, orientation: 'through', floorPos: 'middle', insulation: 'good', windowType: 'lowE', floorMaterial: 'tile' },
+  { name: '主卧', areaM2: 16.8, orientation: 'north', floorPos: 'middle', insulation: 'good', windowType: 'lowE', floorMaterial: 'laminate' },
+  { name: '次卧1', areaM2: 13.8, orientation: 'north', floorPos: 'middle', insulation: 'good', windowType: 'lowE', floorMaterial: 'laminate' },
+  { name: '次卧2', areaM2: 12.4, orientation: 'south', floorPos: 'middle', insulation: 'good', windowType: 'lowE', floorMaterial: 'laminate' },
+  { name: '次卧3', areaM2: 14.4, orientation: 'east', floorPos: 'middle', insulation: 'good', windowType: 'lowE', floorMaterial: 'laminate' },
+  { name: '厨房', areaM2: 6.3, orientation: 'south', floorPos: 'middle', insulation: 'good', windowType: 'lowE', floorMaterial: 'tile' },
+  { name: '卫生间1', areaM2: 4.5, orientation: 'south', floorPos: 'middle', insulation: 'good', windowType: 'double', floorMaterial: 'tile' },
+  { name: '卫生间2', areaM2: 4.7, orientation: 'west', floorPos: 'middle', insulation: 'good', windowType: 'double', floorMaterial: 'tile' },
+];
+
 function exportQuotePDF(
   rooms: RoomCalc[],
   summary: ReturnType<typeof calcSystem>,
   quote: ReturnType<typeof calcQuote>,
 ) {
   const today = new Date().toLocaleDateString('zh-CN');
+  const totalArea = rooms.reduce((s, r) => s + r.areaM2, 0);
   const roomRows = rooms
     .map(
       (r) => `<tr>
@@ -179,10 +192,9 @@ function exportQuotePDF(
 }
 
 export default function RoomLoadPanel() {
-  const [rooms, setRooms] = useState<RoomCalc[]>([
-    calcRoom({ ...DEFAULT_ROOM, name: '客厅餐厅' }),
-    calcRoom({ ...DEFAULT_ROOM, name: '主卧', areaM2: 16, orientation: 'north' }),
-  ]);
+  const [rooms, setRooms] = useState<RoomCalc[]>(
+    DEFAULT_ROOMS.map((r) => calcRoom(r)),
+  );
 
   const updateRoom = (idx: number, patch: Partial<RoomInput>) => {
     setRooms((prev) => {
