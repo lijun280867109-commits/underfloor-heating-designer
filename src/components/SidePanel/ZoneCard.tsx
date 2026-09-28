@@ -14,18 +14,18 @@ interface Props {
 const SPACING_PRESETS = [100, 150, 200, 250];
 const PADDING_PRESETS = [0, 50, 100, 150];
 const CORNER_OPTIONS: Array<{ value: ZoneConnectionCorner; label: string }> = [
-  { value: 'top-left', label: 'Top-left' },
-  { value: 'top-right', label: 'Top-right' },
-  { value: 'bottom-left', label: 'Bottom-left' },
-  { value: 'bottom-right', label: 'Bottom-right' },
+  { value: 'top-left', label: '左上角' },
+  { value: 'top-right', label: '右上角' },
+  { value: 'bottom-left', label: '左下角' },
+  { value: 'bottom-right', label: '右下角' },
 ];
 const START_DIRECTION_OPTIONS: Array<{
   value: SpiralStartDirection;
   label: string;
   Icon: typeof MoveHorizontal;
 }> = [
-  { value: 'horizontal', label: 'Horizontal', Icon: MoveHorizontal },
-  { value: 'vertical', label: 'Vertical', Icon: MoveVertical },
+  { value: 'horizontal', label: '横向', Icon: MoveHorizontal },
+  { value: 'vertical', label: '纵向', Icon: MoveVertical },
 ];
 
 export default function ZoneCard({ zone, isSelected, maxCircuitLengthM }: Props) {
@@ -42,7 +42,6 @@ export default function ZoneCard({ zone, isSelected, maxCircuitLengthM }: Props)
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(zone.name);
 
-  // Lengths are stored in mm and quoted in metres, like every pipe schedule.
   const totalLength = mmToMeters(zone.spiralLengthMm + zone.leaderLengthMm);
   const isOverLimit = totalLength > maxCircuitLengthM;
 
@@ -87,7 +86,7 @@ export default function ZoneCard({ zone, isSelected, maxCircuitLengthM }: Props)
         <div className="zone-actions">
           <button
             className="btn-icon"
-            title="Edit boundary"
+            title="编辑边界"
             onClick={(event) => {
               event.stopPropagation();
               selectZone(zone.id);
@@ -98,7 +97,7 @@ export default function ZoneCard({ zone, isSelected, maxCircuitLengthM }: Props)
           </button>
           <button
             className="btn-icon btn-danger"
-            title="Delete zone"
+            title="删除房间"
             onClick={(event) => {
               event.stopPropagation();
               deleteZone(zone.id);
@@ -110,7 +109,7 @@ export default function ZoneCard({ zone, isSelected, maxCircuitLengthM }: Props)
       </div>
 
       <div className="zone-spacing">
-        <label>Spacing:</label>
+        <label>管间距:</label>
         <div className="spacing-presets">
           <EditableSelect
             value={zone.spacingMm}
@@ -124,7 +123,7 @@ export default function ZoneCard({ zone, isSelected, maxCircuitLengthM }: Props)
       </div>
 
       <div className="zone-spacing">
-        <label>Padding:</label>
+        <label>边距:</label>
         <div className="spacing-presets">
           <EditableSelect
             value={zone.paddingMm}
@@ -138,7 +137,7 @@ export default function ZoneCard({ zone, isSelected, maxCircuitLengthM }: Props)
       </div>
 
       <div className="zone-spacing">
-        <label>Inlet/outlet:</label>
+        <label>分集水器接口:</label>
         <div className="spacing-presets">
           <select
             value={zone.connectionCorner}
@@ -158,13 +157,13 @@ export default function ZoneCard({ zone, isSelected, maxCircuitLengthM }: Props)
       </div>
 
       <div className="zone-spacing">
-        <label>Start:</label>
+        <label>盘管方向:</label>
         <div className="spacing-presets">
           {START_DIRECTION_OPTIONS.map(({ Icon, ...option }) => (
             <button
               key={option.value}
               className={`btn-preset ${zone.startDirection === option.value ? 'active' : ''}`}
-              title={`Spiral leaves the manifold running ${option.value}`}
+              title={`盘管从分集水器${option.label}出发`}
               onClick={(event) => {
                 event.stopPropagation();
                 updateZoneStartDirection(zone.id, option.value);
@@ -180,16 +179,16 @@ export default function ZoneCard({ zone, isSelected, maxCircuitLengthM }: Props)
       <div className={`zone-lengths ${isOverLimit ? 'over-limit' : ''}`}>
         <div className="length-row">
           <span>
-            {mm2ToSquareMeters(zone.areaMm2).toFixed(2)} m² · spiral{' '}
-            {mmToMeters(zone.spiralLengthMm).toFixed(1)}m · leader{' '}
+            {mm2ToSquareMeters(zone.areaMm2).toFixed(2)} ㎡ · 盘管{' '}
+            {mmToMeters(zone.spiralLengthMm).toFixed(1)}m · 引管{' '}
             {mmToMeters(zone.leaderLengthMm).toFixed(1)}m
           </span>
         </div>
         <div className="length-row total">
-          <span>Total:</span>
+          <span>总管长:</span>
           <span>{totalLength.toFixed(1)} m</span>
         </div>
-        {isOverLimit && <div className="warning"><TriangleAlert /> Exceeds {maxCircuitLengthM} m limit!</div>}
+        {isOverLimit && <div className="warning"><TriangleAlert /> 超过{maxCircuitLengthM}m单路限制！</div>}
       </div>
     </div>
   );
