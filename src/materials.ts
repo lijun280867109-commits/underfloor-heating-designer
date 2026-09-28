@@ -1,219 +1,225 @@
 /**
- * 李军暖通南昌项目材料库
+ * 李军暖通南昌项目报价计算模块
  *
- * 供应链：
- * - 地暖管：曼瑞德 MENRED De20 PE-RT
- * - 辅材：保利
- * - 分集水器：巴姆比
- * - 锅炉：德国茵格斯达 INGOSTAR 全预混冷凝炉
- *
- * 报价模式：地暖末端约80元/㎡含辅材
- * 自有施工团队，不外包分包
+ * 严格按《地暖系统架构报价单模板》18项配置
+ * 采暖面积 × 80元/㎡（末端含辅材）+ 20元/㎡（人工）
+ * 自有施工团队，无外包分包
  */
 
-export interface MaterialItem {
-  /** SKU/型号 */
-  sku: string;
-  /** 名称 */
+export interface QuoteItem {
+  no: number;
   name: string;
-  /** 规格描述 */
-  spec: string;
-  /** 单位 */
-  unit: 'm' | 'm2' | 'piece' | 'set' | 'roll' | 'bag';
-  /** 单价（元） */
-  unitPrice: number;
-  /** 品牌 */
   brand: string;
-  /** 用量规则说明 */
-  usageRule: string;
+  spec: string;
+  unit: string;
+  unitPrice: number;
+  qty: number;
+  subtotal: number;
 }
 
-/** 地暖管材 */
-export const PIPES: MaterialItem[] = [
-  {
-    sku: 'MENRED-PERT-20',
-    name: '曼瑞德 PE-RT 地暖管',
-    spec: 'De20×2.0 mm',
-    unit: 'm',
-    unitPrice: 12,
-    brand: 'MENRED 曼瑞德',
-    usageRule: '按设计管路总长计算，加5%损耗；单路≤90m',
-  },
-];
-
-/** 保温辅材（保利） */
-export const INSULATION: MaterialItem[] = [
-  {
-    sku: 'POLY-FOIL-2',
-    name: '保利 反射膜（铝箔）',
-    spec: '2mm 厚，1m 宽',
-    unit: 'm2',
-    unitPrice: 8,
-    brand: '保利',
-    usageRule: '按采暖面积计算，满铺',
-  },
-  {
-    sku: 'POLY-BOARD-20',
-    name: '保利 XPS 挤塑保温板',
-    spec: '20mm 厚，≥300kPa',
-    unit: 'm2',
-    unitPrice: 28,
-    brand: '保利',
-    usageRule: '南昌新建房中间层20mm；老房/顶层/底层建议30mm',
-  },
-  {
-    sku: 'POLY-EDGE-STRIP',
-    name: '保利 边界保温条',
-    spec: '8mm×150mm，自粘',
-    unit: 'm',
-    unitPrice: 3,
-    brand: '保利',
-    usageRule: '按房间周长计算，所有与墙交接处满贴',
-  },
-  {
-    sku: 'POLY-CLIP',
-    name: '保利 卡丁/管卡',
-    spec: 'De20 专用',
-    unit: 'bag',
-    unitPrice: 25,
-    brand: '保利',
-    usageRule: '每㎡约20个，每袋500个',
-  },
-];
-
-/** 分集水器（巴姆比） */
-export const MANIFOLDS: MaterialItem[] = [
-  {
-    sku: 'BAMBI-MANIFOLD-2',
-    name: '巴姆比 分集水器（2路）',
-    spec: '黄铜镀镍，含流量计',
-    unit: 'set',
-    unitPrice: 380,
-    brand: '巴姆比',
-    usageRule: '每路带独立流量计和温控阀',
-  },
-  {
-    sku: 'BAMBI-MANIFOLD-3',
-    name: '巴姆比 分集水器（3路）',
-    spec: '黄铜镀镍，含流量计',
-    unit: 'set',
-    unitPrice: 480,
-    brand: '巴姆比',
-    usageRule: '',
-  },
-  {
-    sku: 'BAMBI-MANIFOLD-4',
-    name: '巴姆比 分集水器（4路）',
-    spec: '黄铜镀镍，含流量计',
-    unit: 'set',
-    unitPrice: 580,
-    brand: '巴姆比',
-    usageRule: '',
-  },
-  {
-    sku: 'BAMBI-MANIFOLD-5',
-    name: '巴姆比 分集水器（5路）',
-    spec: '黄铜镀镍，含流量计',
-    unit: 'set',
-    unitPrice: 680,
-    brand: '巴姆比',
-    usageRule: '',
-  },
-  {
-    sku: 'BAMBI-MANIFOLD-6',
-    name: '巴姆比 分集水器（6路）',
-    spec: '黄铜镀镍，含流量计',
-    unit: 'set',
-    unitPrice: 780,
-    brand: '巴姆比',
-    usageRule: '≤8路，超过需双台',
-  },
-  {
-    sku: 'BAMBI-MANIFOLD-7',
-    name: '巴姆比 分集水器（7路）',
-    spec: '黄铜镀镍，含流量计',
-    unit: 'set',
-    unitPrice: 880,
-    brand: '巴姆比',
-    usageRule: '',
-  },
-  {
-    sku: 'BAMBI-MANIFOLD-8',
-    name: '巴姆比 分集水器（8路）',
-    spec: '黄铜镀镍，含流量计',
-    unit: 'set',
-    unitPrice: 980,
-    brand: '巴姆比',
-    usageRule: '单台上限',
-  },
-];
-
-/** 锅炉（茵格斯达冷凝炉） */
-export const BOILERS: MaterialItem[] = [
-  {
-    sku: 'INGOSTAR-LL1GBQ24-D2',
-    name: '茵格斯达 全预混冷凝壁挂炉',
-    spec: 'LL1GBQ24-D2，24kW，效率106-109%',
-    unit: 'piece',
-    unitPrice: 11850,
-    brand: 'INGOSTAR 德国茵格斯达',
-    usageRule: '按采暖面积选型：120㎡以内24kW；120-180㎡需28kW',
-  },
-];
-
-/** 辅助材料 */
-export const ACCESSORIES: MaterialItem[] = [
-  {
-    sku: 'MIXING-VALVE',
-    name: '混水耦合罐组件',
-    spec: '一二次水力分离，含循环泵',
-    unit: 'set',
-    unitPrice: 1800,
-    brand: '威科/威乐',
-    usageRule: '系统阻力大、管路超100m或二次侧设备多时必装',
-  },
-  {
-    sku: 'THERMOSTAT-SM',
-    name: '森威尔 有线温控器',
-    spec: '周编程，室温控制',
-    unit: 'piece',
-    unitPrice: 180,
-    brand: '森威尔',
-    usageRule: '每主要房间一个，符合JGJ142分户温控要求',
-  },
-  {
-    sku: 'EXPANSION-VESSEL',
-    name: '东贝 膨胀水箱',
-    spec: '按系统水容量选配',
-    unit: 'piece',
-    unitPrice: 350,
-    brand: '东贝',
-    usageRule: '锅炉内置不足时外置补充',
-  },
-];
-
-/** 根据采暖面积推荐保温板厚度 */
-export function recommendedInsulationThickness(
-  floorType: 'middle' | 'top' | 'bottom' | 'old',
-): number {
-  switch (floorType) {
-    case 'old': return 30;      // 老房无保温加厚
-    case 'top': return 30;       // 顶层屋面损失大
-    case 'bottom': return 30;    // 底层地面损失
-    case 'middle':
-    default: return 20;          // 新建中间层标准
-  }
+export interface QuoteInput {
+  /** 采暖总面积 ㎡ */
+  areaM2: number;
+  /** 分集水器回路数 */
+  loops: number;
+  /** 房间数（温控器数量） */
+  roomCount: number;
+  /** 推荐锅炉功率 kW */
+  boilerKW: number;
 }
 
-/** 根据环路数选分集水器型号 */
-export function selectManifold(loops: number): MaterialItem | null {
-  if (loops <= 0 || loops > 8) return null;
-  return MANIFOLDS.find((m) => m.sku.endsWith(`-${loops}`)) ?? null;
+export interface QuoteResult {
+  items: QuoteItem[];
+  total: number;
+  /** 单位面积造价 元/㎡ */
+  perSqm: number;
 }
 
-/** 根据采暖面积推荐锅炉功率 */
-export function selectBoiler(areaM2: number): MaterialItem {
-  // 南昌100W/㎡，120㎡≈12kW，加生活热水峰值24kW足够
-  // 120㎡以上需28kW
-  return BOILERS[0]; // 原型阶段统一24kW，后续加28kW型号
+/** 锅炉选型价 */
+function boilerPrice(kw: number): { name: string; price: number } {
+  if (kw <= 24) return { name: '茵格斯达 LL1GBQ24-D2 24kW', price: 11850 };
+  if (kw <= 28) return { name: '茵格斯达 28kW', price: 13800 };
+  return { name: '茵格斯达 35kW', price: 16800 };
+}
+
+export function calcQuote(input: QuoteInput): QuoteResult {
+  const boiler = boilerPrice(input.boilerKW);
+
+  const items: QuoteItem[] = [
+    {
+      no: 1,
+      name: '全预混一级能效冷凝炉',
+      brand: '德国茵格斯达 INGOSTAR',
+      spec: boiler.name + '，不锈钢全预混换热器，效率106-109%',
+      unit: '台',
+      unitPrice: boiler.price,
+      qty: 1,
+      subtotal: boiler.price,
+    },
+    {
+      no: 3,
+      name: '全屋智能总控',
+      brand: '定制嵌入系统',
+      spec: '壁挂炉APP远程控制、分房独立控温、实时监测',
+      unit: '套',
+      unitPrice: 230,
+      qty: 1,
+      subtotal: 230,
+    },
+    {
+      no: 4,
+      name: '温控器',
+      brand: '森威尔',
+      spec: '分房独立控温，每主要房间一只',
+      unit: '只',
+      unitPrice: 120,
+      qty: Math.max(1, input.roomCount),
+      subtotal: 120 * Math.max(1, input.roomCount),
+    },
+    {
+      no: 5,
+      name: '气候联动变水温控制',
+      brand: '定制嵌入系统',
+      spec: '网络温感联动，自适应供水温度43/45/47℃',
+      unit: '套',
+      unitPrice: 630,
+      qty: 1,
+      subtotal: 630,
+    },
+    {
+      no: 6,
+      name: '自适应变流量控制',
+      brand: '定制嵌入系统',
+      spec: '永磁变频泵，扬程15m，最大流量2.0m³/h',
+      unit: '套',
+      unitPrice: 1160,
+      qty: 1,
+      subtotal: 1160,
+    },
+    {
+      no: 7,
+      name: '全系统节能逻辑控制',
+      brand: '定制嵌入系统',
+      spec: '锅炉启停抑制、最小负荷匹配、延时停机',
+      unit: '套',
+      unitPrice: 160,
+      qty: 1,
+      subtotal: 160,
+    },
+    {
+      no: 8,
+      name: '本地气候场景适配模块',
+      brand: '定制嵌入系统',
+      spec: '南昌阴冷/寒潮专属运行曲线，室外温湿度实时采集',
+      unit: '套',
+      unitPrice: 200,
+      qty: 1,
+      subtotal: 200,
+    },
+    {
+      no: 9,
+      name: '联动控制器',
+      brand: '定制嵌入系统',
+      spec: '水泵启停/信号传输，含户外防水控制箱',
+      unit: '套',
+      unitPrice: 80,
+      qty: 1,
+      subtotal: 80,
+    },
+    {
+      no: 10,
+      name: '二次水力系统',
+      brand: '定制嵌入系统',
+      spec: '一二次回路水力分离，小温差大流量',
+      unit: '套',
+      unitPrice: 800,
+      qty: 1,
+      subtotal: 800,
+    },
+    {
+      no: 11,
+      name: '地暖末端全套辅材',
+      brand: '曼瑞德 MENRED + 保利',
+      spec: 'De20 PE-RT管150mm间距 + XPS保温板 + 反射膜 + 边界条',
+      unit: '㎡',
+      unitPrice: 80,
+      qty: Math.round(input.areaM2 * 10) / 10,
+      subtotal: Math.round(input.areaM2 * 80),
+    },
+    {
+      no: 12,
+      name: '地暖盘管安装人工费',
+      brand: '自有施工团队（不外包）',
+      spec: '保温层铺设、盘管固定、单回路打压测试',
+      unit: '㎡',
+      unitPrice: 20,
+      qty: Math.round(input.areaM2 * 10) / 10,
+      subtotal: Math.round(input.areaM2 * 20),
+    },
+    {
+      no: 13,
+      name: '不锈钢分集水器+执行器',
+      brand: '巴姆比 BAMBI',
+      spec: '一体挤压成型+电热执行器+压差旁通+排气阀',
+      unit: '路',
+      unitPrice: 230,
+      qty: Math.max(2, input.loops),
+      subtotal: 230 * Math.max(2, input.loops),
+    },
+    {
+      no: 14,
+      name: '中央控制器',
+      brand: '定制嵌入系统',
+      spec: '集中控制分集水器/温控器/信号汇总',
+      unit: '套',
+      unitPrice: 260,
+      qty: 1,
+      subtotal: 260,
+    },
+    {
+      no: 15,
+      name: '系统主管/支管',
+      brand: 'PPR稳态管',
+      spec: '一次侧DN25/二次侧DN40/支管DN25，含保温管件',
+      unit: '项',
+      unitPrice: 1600,
+      qty: 1,
+      subtotal: 1600,
+    },
+    {
+      no: 16,
+      name: '耦合罐',
+      brand: '含辅材/安装',
+      spec: '保证壁挂炉最小连续运行≥3分钟',
+      unit: '项',
+      unitPrice: 380,
+      qty: 1,
+      subtotal: 380,
+    },
+    {
+      no: 17,
+      name: '主机及系统安装调试',
+      brand: '自有施工团队',
+      spec: '锅炉连接、管道焊接、智能布线、打压排气、程序调试',
+      unit: '项',
+      unitPrice: 800,
+      qty: 1,
+      subtotal: 800,
+    },
+    {
+      no: 18,
+      name: '首年度免费服务',
+      brand: '自有售后团队',
+      spec: '采暖前上门安检、系统检查、运行校准、能耗优化',
+      unit: '年',
+      unitPrice: 0,
+      qty: 1,
+      subtotal: 0,
+    },
+  ];
+
+  const total = items.reduce((s, it) => s + it.subtotal, 0);
+  const perSqm = input.areaM2 > 0 ? Math.round(total / input.areaM2) : 0;
+
+  return { items, total, perSqm };
 }
