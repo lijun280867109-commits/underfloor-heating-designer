@@ -1,167 +1,280 @@
 /**
- * 南昌地区采暖热负荷计算模块
+ * 南昌地暖热负荷计算模块
  *
- * 设计依据：
- * - JGJ 142-2012 《辐射供暖供冷技术规程》
- * - GB 55015-2021 《建筑节能与可再生能源利用通用规范》夏热冬冷地区
- * - GB 50736-2012 《民用建筑供暖通风与空气调节设计规范》
- *
- * 南昌设计参数：
- * - 室外采暖计算温度：-1.3℃
- * - 室内设计温度：20℃（卧室）/ 22℃（客厅）
- * - 计算温差：21.3℃
+ * 严格按《中欧体系｜冷凝壁挂炉低温辐射采暖系统效能架构设计依据》表取值
+ * 设计基准：tw=-1.3℃, tn=20℃, ΔT=8℃小温差大流量
  */
 
-export type Orientation = 'north' | 'south' | 'east' | 'west';
-export type FloorType = 'middle' | 'top' | 'bottom' | 'old';
+// ===== 枚举选项（与xlsx表一致）=====
 
-export interface HeatLoadInput {
-  /** 房间面积 ㎡ */
+export type Orientation = 'south' | 'north' | 'east' | 'west' | 'through';
+export type FloorPos = 'middle' | 'villaMid' | 'first' | 'top';
+export type Insulation = 'good' | 'old' | 'selfbuilt';
+export type WindowType = 'lowE' | 'double' | 'bay' | 'single';
+export type FloorMaterial = 'tile' | 'laminate' | 'solidWood';
+
+export interface RoomInput {
+  name: string;
   areaM2: number;
-  /** 主要朝向（取最差一面墙） */
   orientation: Orientation;
-  /** 楼层类型 */
-  floorType: FloorType;
-  /** 窗墙比 0-1，默认 0.3 */
-  windowWallRatio?: number;
+  floorPos: FloorPos;
+  insulation: Insulation;
+  windowType: WindowType;
+  floorMaterial: FloorMaterial;
 }
 
-export interface HeatLoadResult {
-  /** 总热负荷 W */
-  totalW: number;
-  /** 单位面积热负荷 W/㎡ */
-  perSqm: number;
-  /** 围护结构基本耗热 W */
-  envelopeW: number;
-  /** 冷风渗透附加 W */
-  infiltrationW: number;
-  /** 朝向修正 W */
-  orientationAdjustW: number;
-  /** 楼层修正 W */
-  floorAdjustW: number;
+export interface RoomCalc extends RoomInput {
+  /** 单位热负荷 W/㎡ */
+  loadPerSqm: number;
+  /** 房间总热负荷 W */
+  totalLoadW: number;
+  /** 单路设计流量 L/h */
+  flowLph: number;
+  /** 推荐盘管规格 */
+  pipeSpec: string;
+  /** 推荐回路数 */
+  loopCount: number;
+  /** 单路平均管长 m */
+  avgLoopLengthM: number;
+  /** 管路总长 m */
+  totalPipeLengthM: number;
 }
 
-/**
- * 南昌新建住宅单位面积采暖热负荷基准 W/㎡
- * （中间层、南向、窗墙比0.3、GB 55015围护结构达标）
- */
-const BASE_LOAD_PER_SQM = 100;
+// ===== 修正系数表（来自xlsx"计算参数说明"sheet）=====
 
-/** 朝向修正系数（基于基础指标的增量 W/㎡） */
+const BASE_LOAD = 100; // W/㎡，南昌新建商品房中间层标准
+
 const ORIENTATION_ADJUST: Record<Orientation, number> = {
-  north: 20,   // 北向无太阳辐射，冬季主导风向
-  east: 5,     // 上午有日照，下午冷
-  west: 8,     // 西晒夏季热，冬季影响小
-  south: -5,   // 南向有太阳辐射，可减
+  south: 0,
+  north: 20,
+  east: 10,
+  west: 10,
+  through: 5, // 南北通透
 };
 
-/** 楼层修正系数（基于基础指标的增量 W/㎡） */
-const FLOOR_ADJUST: Record<FloorType, number> = {
-  middle: 0,    // 中间层，上下有相邻采暖房间
-  top: 15,      // 顶层，屋面传热损失
-  bottom: 10,   // 底层，地面/不采暖地下室传热
-  old: 25,      // 老房无外保温，外墙K值不达标
+const FLOOR_ADJUST: Record<FloorPos, number> = {
+  middle: 0,
+  villaMid: 10,
+  first: 15,
+  top: 20,
 };
 
-/** 窗墙比修正（相对0.3基准的增量 W/㎡） */
-function windowAdjust(wwr: number): number {
-  // 每增加0.1窗墙比，单位负荷增加约8 W/㎡（外窗K值~3.0 vs 外墙K值~0.8）
-  return (wwr - 0.3) * 80;
-}
+const INSULATION_ADJUST: Record<Insulation, number> = {
+  good: 0,
+  old: 25,
+  selfbuilt: 40,
+};
 
-/**
- * 南昌住宅热负荷快速估算
- *
- * 用法：
- *   const load = estimateHeatLoad({ areaM2: 18, orientation: 'north', floorType: 'middle' });
- *   // load.totalW ≈ 2160W（100+20=120 W/㎡ × 18㎡）
- */
-export function estimateHeatLoad(input: HeatLoadInput): HeatLoadResult {
-  const wwr = input.windowWallRatio ?? 0.3;
-  const base = BASE_LOAD_PER_SQM;
-  const orientAdj = ORIENTATION_ADJUST[input.orientation];
-  const floorAdj = FLOOR_ADJUST[input.floorType];
-  const winAdj = windowAdjust(wwr);
+const WINDOW_ADJUST: Record<WindowType, number> = {
+  lowE: 0,
+  double: 10,
+  bay: 20,
+  single: 25,
+};
 
-  const perSqm = Math.max(60, base + orientAdj + floorAdj + winAdj);
-  const total = perSqm * input.areaM2;
+const FLOOR_MATERIAL_ADJUST: Record<FloorMaterial, number> = {
+  tile: 0,
+  laminate: 10,
+  solidWood: 25,
+};
 
-  // 拆分各项用于展示
-  const envelopeW = (base + winAdj) * input.areaM2;
-  const orientationAdjustW = orientAdj * input.areaM2;
-  const floorAdjustW = floorAdj * input.areaM2;
-  // 冷风渗透按围护结构的15%估算（换气次数0.5次/h）
-  const infiltrationW = envelopeW * 0.15;
+// ===== 计算常量 =====
+
+/** 150mm间距实际管长系数 m/㎡（扣边距后） */
+const PIPE_LENGTH_PER_SQM = 5.0;
+
+/** 单路最大管长 m（JGJ142允许120，李军基准≤90） */
+const MAX_LOOP_LENGTH_M = 90;
+
+/** 设计供回水温差 ℃ */
+const DESIGN_DELTA_T = 8;
+
+/** 天然气低位热值 kWh/m³ */
+const GAS_KWH_PER_M3 = 9.97;
+
+/** 燃气价 元/m³（南昌统一价） */
+export const GAS_PRICE_PER_M3 = 4.1;
+
+// ===== 单房间计算 =====
+
+export function calcRoom(input: RoomInput): RoomCalc {
+  const loadPerSqm =
+    BASE_LOAD +
+    ORIENTATION_ADJUST[input.orientation] +
+    FLOOR_ADJUST[input.floorPos] +
+    INSULATION_ADJUST[input.insulation] +
+    WINDOW_ADJUST[input.windowType] +
+    FLOOR_MATERIAL_ADJUST[input.floorMaterial];
+
+  const totalLoadW = loadPerSqm * input.areaM2;
+
+  // 流量 L/h = Q(W) × 0.86 / ΔT(℃)
+  const flowLph = (totalLoadW * 0.86) / DESIGN_DELTA_T;
+
+  // 管路总长
+  const totalPipeLengthM = input.areaM2 * PIPE_LENGTH_PER_SQM;
+
+  // 回路数：按单路≤90m反推
+  const loopCount = Math.max(1, Math.ceil(totalPipeLengthM / MAX_LOOP_LENGTH_M));
+
+  // 单路平均管长
+  const avgLoopLengthM = totalPipeLengthM / loopCount;
 
   return {
-    totalW: Math.round(total),
-    perSqm: Math.round(perSqm),
-    envelopeW: Math.round(envelopeW),
-    infiltrationW: Math.round(infiltrationW),
-    orientationAdjustW: Math.round(orientationAdjustW),
-    floorAdjustW: Math.round(floorAdjustW),
+    ...input,
+    loadPerSqm,
+    totalLoadW: Math.round(totalLoadW),
+    flowLph: Math.round(flowLph),
+    pipeSpec: 'De20 PE-RT',
+    loopCount,
+    avgLoopLengthM: Math.round(avgLoopLengthM * 10) / 10,
+    totalPipeLengthM: Math.round(totalPipeLengthM),
   };
 }
 
-/**
- * 详细版：按围护结构逐项计算 Q = K·F·ΔT
- * 用于需要精确计算的项目（老房、非标准建筑）
- */
-export interface EnvelopeElement {
-  type: 'wall' | 'window' | 'door' | 'roof' | 'floor';
-  /** 面积 ㎡ */
-  areaM2: number;
-  /** 传热系数 W/(㎡·K) */
-  uValue: number;
+// ===== 全屋汇总 =====
+
+export interface SystemSummary {
+  totalLoadW: number;
+  totalLoadKW: number;
+  recommendedBoilerKW: number;
+  totalLoops: number;
+  avgLoopLengthM: number;
+  totalPipeLengthM: number;
+  secondaryFlowM3h: number;
+  secondaryMainPipe: string;
+  secondaryVelocityMps: number;
+  primaryFlowM3h: number;
+  primaryMainPipe: string;
+  gasDailyM3: Record<string, number>;
+  gasMonthlyM3: number;
 }
 
-export const NANCHANG_T_OUTSIDE = -1.3;
-export const NANCHANG_T_INSIDE = 20;
-export const NANCHANG_DELTA_T = NANCHANG_T_INSIDE - NANCHANG_T_OUTSIDE; // 21.3
+export function calcSystem(rooms: RoomCalc[]): SystemSummary {
+  const totalLoadW = rooms.reduce((s, r) => s + r.totalLoadW, 0);
+  const totalLoadKW = totalLoadW / 1000;
+  const totalLoops = rooms.reduce((s, r) => s + r.loopCount, 0);
+  const totalPipeLengthM = rooms.reduce((s, r) => s + r.totalPipeLengthM, 0);
+  const avgLoopLengthM = totalLoops > 0 ? totalPipeLengthM / totalLoops : 0;
 
-/**
- * 按 GB 55015 夏热冬冷地区围护结构限值
- */
-export const U_VALUE_LIMITS = {
-  roof: 0.40,      // W/(㎡·K)
-  wall: 0.80,      // W/(㎡·K)
-  window: 3.2,     // 外窗K限值（窗墙比≤0.4时）
-  floor: 0.50,
-} as const;
+  // 锅炉选型：留20%余量，选常规规格
+  const boilerChoice = [24, 28, 32, 35].find((kw) => totalLoadKW * 1.2 <= kw) ?? 35;
 
-export function detailedHeatLoad(elements: EnvelopeElement[]): {
-  envelopeW: number;
-  infiltrationW: number;
-  totalW: number;
-} {
-  let envelopeW = 0;
-  for (const el of elements) {
-    envelopeW += el.uValue * el.areaM2 * NANCHANG_DELTA_T;
+  // 二次侧总流量 m³/h = 总负荷(W) × 0.86 / 8 / 1000
+  const secondaryFlowM3h = (totalLoadW * 0.86) / DESIGN_DELTA_T / 1000;
+
+  // 主管规格：按经济流速0.3-0.8m/s选
+  const secondaryMainPipe = selectPipe(secondaryFlowM3h);
+  const secondaryVelocityMps = flowVelocity(secondaryFlowM3h, secondaryMainPipe);
+
+  // 一次侧（锅炉侧）按10℃温差
+  const primaryFlowM3h = (totalLoadW * 0.86) / 10 / 1000;
+  const primaryMainPipe = selectPipe(primaryFlowM3h);
+
+  // 耗气量：按4个温度区间加权
+  const gasDailyM3 = estimateGasDaily(totalLoadKW, boilerChoice);
+  const gasMonthlyM3 = Math.round(
+    Object.values(gasDailyM3).reduce((a, b) => a + b, 0) / 4 * 30,
+  );
+
+  return {
+    totalLoadW,
+    totalLoadKW: Math.round(totalLoadKW * 100) / 100,
+    recommendedBoilerKW: boilerChoice,
+    totalLoops,
+    avgLoopLengthM: Math.round(avgLoopLengthM * 10) / 10,
+    totalPipeLengthM: Math.round(totalPipeLengthM),
+    secondaryFlowM3h: Math.round(secondaryFlowM3h * 100) / 100,
+    secondaryMainPipe,
+    secondaryVelocityMps: Math.round(secondaryVelocityMps * 100) / 100,
+    primaryFlowM3h: Math.round(primaryFlowM3h * 100) / 100,
+    primaryMainPipe,
+    gasDailyM3,
+    gasMonthlyM3,
+  };
+}
+
+// ===== 管道选型 =====
+
+const PPR_PIPES = [
+  { size: 'DN20', innerDiameter: 16 },
+  { size: 'DN25', innerDiameter: 21 },
+  { size: 'DN32', innerDiameter: 26 },
+  { size: 'DN40', innerDiameter: 33 },
+] as const;
+
+function selectPipe(flowM3h: number): string {
+  for (const p of PPR_PIPES) {
+    // 流速 = 流量(m³/h) / 截面积(m²) / 3600
+    const area = Math.PI * (p.innerDiameter / 1000) ** 2 / 4;
+    const velocity = flowM3h / 3600 / area;
+    if (velocity <= 0.8) return p.size;
   }
-  // 冷风渗透：按换气次数 0.5 次/h，层高3m
-  // Q = 0.5 × V × 1.2 × 1.005 × ΔT / 3.6
-  // 简化：取围护结构的 15%
-  const infiltrationW = envelopeW * 0.15;
-  return {
-    envelopeW: Math.round(envelopeW),
-    infiltrationW: Math.round(infiltrationW),
-    totalW: Math.round(envelopeW + infiltrationW),
-  };
+  return 'DN40';
 }
 
-/**
- * 根据总热负荷计算所需管路流量
- * Q = c·ρ·ΔT·V  =>  V(L/min) = Q(W) / (4186 × ΔT/60)
- * ΔT=8℃ 时：V = Q / 558
- */
-export function requiredFlowLpm(totalW: number, deltaTC: number = 8): number {
-  return totalW / (4186 * deltaTC / 60);
+function flowVelocity(flowM3h: number, size: string): number {
+  const pipe = PPR_PIPES.find((p) => p.size === size) ?? PPR_PIPES[1];
+  const area = Math.PI * (pipe.innerDiameter / 1000) ** 2 / 4;
+  return flowM3h / 3600 / area;
 }
 
-/**
- * 校验单路负荷是否在分集水器每路容量内
- * 巴姆比分集水器每路推荐 ≤ 1.5kW
- */
-export function loopCountNeeded(totalW: number, maxPerLoopW = 1500): number {
-  return Math.max(1, Math.ceil(totalW / maxPerLoopW));
+// ===== 耗气量估算 =====
+
+function estimateGasDaily(totalLoadKW: number, boilerKW: number): Record<string, number> {
+  // 按4个温度区间的负荷系数和效率估算
+  // 从xlsx表提取：24kW炉在南昌的日耗气参考值
+  const scenarios = [
+    { range: '8~12℃(38℃)', factor: 0.12, efficiency: 1.09, days: 30 },
+    { range: '4~8℃(41℃)', factor: 0.18, efficiency: 1.08, days: 35 },
+    { range: '0~4℃(44℃)', factor: 0.28, efficiency: 1.07, days: 15 },
+    { range: '-3~0℃(47℃)', factor: 0.35, efficiency: 1.06, days: 10 },
+  ];
+
+  const result: Record<string, number> = {};
+  for (const s of scenarios) {
+    // 实际输出功率 = 总负荷 × 负荷系数（部分负荷率）
+    const actualKW = totalLoadKW * s.factor * (boilerKW / 24);
+    // 日耗气 = 实际功率 × 24h / (热值 × 效率)
+    result[s.range] = Math.round(
+      (actualKW * 24) / (GAS_KWH_PER_M3 * s.efficiency) * 10,
+    ) / 10;
+  }
+  return result;
 }
+
+// ===== 选项列表（供UI下拉用）=====
+
+export const ORIENTATION_OPTIONS: { value: Orientation; label: string; adj: number }[] = [
+  { value: 'south', label: '南向', adj: 0 },
+  { value: 'north', label: '北向', adj: 20 },
+  { value: 'east', label: '东向', adj: 10 },
+  { value: 'west', label: '西向', adj: 10 },
+  { value: 'through', label: '南北通透', adj: 5 },
+];
+
+export const FLOOR_POS_OPTIONS: { value: FloorPos; label: string; adj: number }[] = [
+  { value: 'middle', label: '中间层', adj: 0 },
+  { value: 'villaMid', label: '别墅中层', adj: 10 },
+  { value: 'first', label: '一楼/地坪', adj: 15 },
+  { value: 'top', label: '顶楼/顶层', adj: 20 },
+];
+
+export const INSULATION_OPTIONS: { value: Insulation; label: string; adj: number }[] = [
+  { value: 'good', label: '有外保温(新建商品房)', adj: 0 },
+  { value: 'old', label: '无外保温(老房)', adj: 25 },
+  { value: 'selfbuilt', label: '自建房保温差', adj: 40 },
+];
+
+export const WINDOW_OPTIONS: { value: WindowType; label: string; adj: number }[] = [
+  { value: 'lowE', label: '断桥中空Low-E', adj: 0 },
+  { value: 'double', label: '普通双层玻璃', adj: 10 },
+  { value: 'bay', label: '大面积落地窗', adj: 20 },
+  { value: 'single', label: '单层玻璃', adj: 25 },
+];
+
+export const FLOOR_MAT_OPTIONS: { value: FloorMaterial; label: string; adj: number }[] = [
+  { value: 'tile', label: '地砖/石材', adj: 0 },
+  { value: 'laminate', label: '复合木地板', adj: 10 },
+  { value: 'solidWood', label: '纯实木地板', adj: 25 },
+];
