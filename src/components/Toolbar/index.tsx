@@ -10,12 +10,12 @@ import { useStore } from '../../state/store';
 import { ToolMode } from '../../types';
 
 const TOOL_OPTIONS: Array<{ mode: ToolMode; label: string; Icon: typeof Wrench }> = [
-  { mode: 'select', label: 'Select', Icon: MousePointer2 },
-  { mode: 'placeManifold', label: 'Manifold', Icon: Wrench },
-  { mode: 'drawZone', label: 'Polygon zone', Icon: Waypoints },
-  { mode: 'drawRect', label: 'Rect zone', Icon: RectangleHorizontal },
-  { mode: 'routeLeader', label: 'Route Leaders', Icon: Link2 },
-  { mode: 'measure', label: 'Measure', Icon: RulerDimensionLine },
+  { mode: 'select', label: '选择', Icon: MousePointer2 },
+  { mode: 'placeManifold', label: '分集水器', Icon: Wrench },
+  { mode: 'drawZone', label: '多边形房间', Icon: Waypoints },
+  { mode: 'drawRect', label: '矩形房间', Icon: RectangleHorizontal },
+  { mode: 'routeLeader', label: '引管路由', Icon: Link2 },
+  { mode: 'measure', label: '测量', Icon: RulerDimensionLine },
 ];
 
 export default function Toolbar() {
@@ -38,10 +38,10 @@ export default function Toolbar() {
       <button
         className="btn tool-btn"
         onClick={() => fitViewToContent(window.innerWidth - 320, window.innerHeight - 44)}
-        title="Zoom and pan to frame the whole drawing"
+        title="缩放并平移以显示全部内容"
       >
         <Maximize2 />
-        Fit View
+        适应视图
       </button>
     </div>
   );
