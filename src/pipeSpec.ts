@@ -1,25 +1,62 @@
 /**
- * Physical properties of the pipe being laid — the numbers to change when the spec
- * changes, kept together so they're findable rather than buried in the geometry.
+ * 管材物理参数 — 李军暖通南昌项目基准
+ *
+ * 管路：曼瑞德 MENRED De20 PE-RT（耐热聚乙烯）
+ * 标准：JGJ 142-2012 《辐射供暖供冷技术规程》
+ * 对标：EN 1264 / REHVA / CIBSE
  */
 
 /**
- * Centreline radius of a bend in the pipe, mm.
+ * 管路最小弯曲半径（中心线），mm。
  *
- * 100 mm suits the usual 16 mm PEX-AL-PEX: manufacturers put the cold minimum at about
- * five times the outside diameter (~80 mm), so this leaves a little margin and is the
- * radius a fitter would actually form by hand.
+ * De20 PE-RT 盘管，按施工手册最小弯曲半径 ≥ 8D = 160mm，
+ * 现场手煨留余量取 10D = 200mm。
  *
- * It is a floor on every bend drawn, in a leader run and in a spiral alike, because it is
- * a property of the pipe rather than of the drawing. A spiral would rather form its corners
- * at half the pipe spacing, which keeps consecutive passes concentric through a corner, and
- * does so wherever that is the wider of the two.
+ * 这是每一个弯头（包括 leader 管和螺旋弯）的硬性下限——
+ * 弯曲半径是管材属性，不是画图属性。
  *
- * The 180° turn at the middle of a spiral is where this bites. No half-turn formed at this
- * radius fits between lanes closer together than twice it, and consecutive passes sit one
- * spacing apart — so under 200 mm spacing the last two passes are opened out until they are
- * twice this radius apart, and the turn stays the plain half circle it should be. The
- * middle of a zone is empty, which is where that room comes from; the only cost is a
- * slightly wider gap between the last two passes.
+ * 间距小于 2×R（400mm）时，最中间两趟管路会被自动拉开到 2×R，
+ * 中间区域会略空，这是正常的施工余量。
  */
-export const PIPE_BEND_RADIUS_MM = 100;
+export const PIPE_BEND_RADIUS_MM = 200;
+
+/**
+ * 默认管材外径 mm — 曼瑞德 De20 PE-RT
+ */
+export const DEFAULT_PIPE_OUTER_DIAMETER_MM = 20;
+
+/**
+ * 常用管材外径选项 mm
+ * - 20: 曼瑞德 De20 PE-RT（本项目主力）
+ * - 16: 备用/小回路
+ */
+export const COMMON_PIPE_OUTER_DIAMETERS_MM = [16, 20];
+
+/**
+ * 管壁厚度 mm — PE-RT De20 通常 2.0mm
+ */
+export const PIPE_WALL_MM = 2.0;
+
+/**
+ * 单路最大管路长度 m — JGJ 142 要求环路 ≤ 120m，
+ * 李军设计基准取 ≤ 90m（流速保证 0.3-0.8m/s，水力平衡更易做）
+ */
+export const MAX_LOOP_LENGTH_M = 90;
+
+/**
+ * 分集水器每路最大负荷 kW
+ * 巴姆比分集水器每路推荐 ≤ 1.5kW
+ */
+export const MAX_LOAD_PER_LOOP_KW = 1.5;
+
+/**
+ * 设计供回水温差 ℃ — 李军基准 8℃ 小温差大流量
+ * （JGJ 142 允许 5-10℃，取 8℃ 兼顾均匀性和水泵能耗）
+ */
+export const DESIGN_DELTA_T_C = 8;
+
+/**
+ * 设计供水温度 ℃ — 气候补偿区间 38/41/44/47℃，
+ * 默认取中间值 41℃（南昌中间层新房）
+ */
+export const DESIGN_SUPPLY_TEMP_C = 41;
